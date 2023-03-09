@@ -26,22 +26,24 @@ class handle_model():
         self.test_dataloader = test_dataloader
         self.model = model
         self.training_acc = []
+        self.training_acc_with_epoch = []
         self.training_loss = []
         self.name_of_model = model.__class__.__name__
 
-    def run(self):
+    def run(self, epochs=5, learning_rate=1e-3, loss_fn=nn.CrossEntropyLoss()):
         """
         Trains and tests the model on provided datasets for specified number of epochs.
         """
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # model = LinearNN().to(device)
         self.model.to(device)
-        self.loss_fn = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-        self.epochs = 5
+        self.epochs = epochs
+        self.learing_rate = learning_rate
+        self.loss_fn = loss_fn
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         print(f"Running model")
         for self.epoch in range(self.epochs):
-            print(f"Epoch {self.epoch + 1}\n-------------------------------")
+            print(f"Epoch {self.epoch + 1} of {self.name_of_model}\n-------------------------------")
             self.train(self.train_dataloader, self.model, self.loss_fn, optimizer)
             self.test(self.test_dataloader, self.model, self.loss_fn)
 
@@ -119,7 +121,8 @@ class handle_model():
         test_loss /= num_batches
         correct /= size
         print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
-        self.training_acc.append([self.epoch+1, 100*correct]),
+        self.training_acc.append(100*correct),
+        self.training_acc_with_epoch.append([self.epoch+1, 100*correct]),
 
     def plot_training_acc(self, save_string="training_acc_plot.png"):
         import pandas as pd

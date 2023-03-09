@@ -107,75 +107,133 @@ class SimpleSparseLayer(nn.Module):
 
         return x
 
-class SelfConnectedSparseLayer(nn.Module):
-    def __init__(self, in_features, out_features, sparsity, connection_ratio, bias=True, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), dtype=None):
-        super(SelfConnectedSparseLayer, self).__init__()
+
+class NearestNeighborSparseLayer(nn.Module):
+    def __init__(self, in_features, out_features, sparsity=0.5, bias=True, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+        super(NearestNeighborSparseLayer, self).__init__()
+
         self.in_features = in_features
         self.out_features = out_features
         self.sparsity = sparsity
-        self.connection_ratio = connection_ratio
+        self.use_bias = bias
         self.device = device
-        self.dtype = dtype
 
-        self.weight = nn.Parameter(torch.Tensor(out_features, in_features)).to(device)
+        # Berechnen der maximalen Anzahl an Verbindungen zwischen den Eingangs- und Ausgangsneuronen.
+        max_connections = int(in_features * out_features * sparsity)
+
+        # Erstellen eines 2D-Tensors, der alle möglichen Verbindungen zwischen den Eingangs- und Ausgangsneuronen enthält.
+        connections = torch.zeros(in_features, out_features)
+
+        # Zufälliges Auswählen von max_connections Verbindungen und Markieren als aktiv.
+        active_indices = torch.randperm(in_features * out_features)[:max_connections]
+        connections.view(-1)[active_indices] = 1
+
+        # Erstellen der Verbindungen zwischen benachbarten Input-Neuronen.
+        nearest_neighbors = torch.zeros(in_features, in_features)
+
+        for i in range(in_features):
+            for j in range(i - 1, i + 2):
+                if j >= 0 and j < in_features:
+                    nearest_neighbors[i, j] = 1
+
+        # Speichern der Verbindungen als PyTorch Parameter.
+        self.connections = nn.Parameter(connections, requires_grad=True)
+
+        # Speichern der Verbindungen zwischen benachbarten Input-Neuronen als PyTorch Parameter.
+        self.nearest_neighbors = nn.Parameter(nearest_neighbors, requires_grad=True)
+
+        # Erstellen der Gewichtungsmatrix als PyTorch Parameter.
+        self.weight = nn.Parameter(torch.Tensor(out_features, in_features).to(device), requires_grad=True)
+
+        # Initialisierung der Gewichte mit Xavier-Initialisierung.
         nn.init.xavier_uniform_(self.weight)
 
+        # Optional: Erstellen des Bias-Parameters.
         if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_features))
+            self.bias = nn.Parameter(torch.Tensor(out_features).to(device), requires_grad=True)
             nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter('bias', None)
 
-        self.reset_parameters()
+    def forward(self, x):
+        # Anwenden der Verbindungen auf die Eingabe.
+        connections = self.connections * self.nearest_neighbors
+        x = x.matmul(connections * self.weight.t())
 
-    def reset_parameters(self):
+        # Optional: Hinzufügen des Biases.
+        if self.use_bias:
+            x = x + self.bias
+
+        return x
+
+
+class SelfConnectedSparseLayer(nn.Module):
+    def __init__(self, in_features, out_features, sparsity=0.5, self_connection=0.5, bidirectional=True, bias=True, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+        super(SelfConnectedSparseLayer, self).__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.sparsity = sparsity
+        self.self_connection = self_connection
+        self.bidirectional = bidirectional
+        self.use_bias = bias
+        self.device = device
+
+        # Berechnen der maximalen Anzahl an Verbindungen zwischen den Eingangs- und Ausgangsneuronen.
+        max_connections = int(in_features * out_features * sparsity)
+
+        # Erstellen eines 2D-Tensors, der alle möglichen Verbindungen zwischen den Eingangs- und Ausgangsneuronen enthält.
+        connections = torch.zeros(in_features, out_features)
+
+        # Zufälliges Auswählen von max_connections Verbindungen und Markieren als aktiv.
+        active_indices = torch.randperm(in_features * out_features)[:max_connections]
+        connections.view(-1)[active_indices] = 1
+
+        # Erstellen der Verbindungen zwischen benachbarten Input-Neuronen.
+        nearest_neighbors = torch.zeros(in_features, in_features)
+
+        for i in range(in_features):
+            for j in range(i - 1, i + 2):
+                if j >= 0 and j < in_features:
+                    nearest_neighbors[i, j] = 1
+
+        # Selbstverbindungen
+        self_connections = torch.zeros(in_features, in_features)
+        num_self_connections = int(in_features * self_connection)
+
+        for i in range(in_features):
+            self_indices = torch.randperm(in_features)[:num_self_connections]
+            self_connections[i, self_indices] = 1
+
+        # Speichern der Verbindungen als PyTorch Parameter.
+        self.connections = nn.Parameter(connections, requires_grad=True)
+
+        # Speichern der Verbindungen zwischen benachbarten Input-Neuronen als PyTorch Parameter.
+        self.nearest_neighbors = nn.Parameter(nearest_neighbors, requires_grad=True)
+
+        # Speichern der Selbstverbindungen als PyTorch Parameter.
+        self.self_connections = nn.Parameter(self_connections, requires_grad=True)
+
+        # Erstellen der Gewichtungsmatrix als PyTorch Parameter.
+        self.weight = nn.Parameter(torch.Tensor(out_features, in_features).to(device), requires_grad=True)
+
+        # Initialisierung der Gewichte mit Xavier-Initialisierung.
         nn.init.xavier_uniform_(self.weight)
-        if self.bias is not None:
+
+        # Optional: Erstellen des Bias-Parameters.
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(out_features).to(device), requires_grad=True)
             nn.init.zeros_(self.bias)
 
-    def forward(self, input):
-        if self.device is not None:
-            self.weight = self.weight.to(self.device)
-            if self.bias is not None:
-                self.bias = self.bias.to(self.device)
+    def forward(self, x):
+        # Anwenden der Verbindungen auf die Eingabe.
+        connections = self.connections * self.nearest_neighbors
 
-        if torch.cuda.is_available():
-            if self.device is None:
-                device = torch.device('cuda')
-            else:
-                device = self.device
+        if self.bidirectional:
+            connections = connections + self.connections.t() * self.self_connections
 
-            self.weight = self.weight.to(device)
-            if self.bias is not None:
-                self.bias = self.bias.to(device)
+        x = x.matmul(connections * self.weight.t())
 
-        mask = torch.zeros((self.out_features, self.in_features), dtype=self.dtype)
-        for i in range(self.out_features):
-            # Connect to self and neighboring neurons
-            start = max(0, i - 1)
-            end = min(self.out_features, i + 2)
-            connected_neurons = list(range(start, end))
-            connected_neurons.remove(i)
-            connected_neurons = [n % self.out_features for n in connected_neurons]
-            connected_neurons.sort()
+        # Optional: Hinzufügen des Biases.
+        if self.use_bias:
+            x = x + self.bias
 
-            # Randomly select connections based on sparsity
-            num_connections = int(len(connected_neurons) * self.in_features * self.connection_ratio)
-            indices = torch.randperm(len(connected_neurons) * self.in_features)[:num_connections]
-            row_indices = torch.full((len(indices),), i, dtype=torch.long)
-            col_indices = torch.zeros((len(indices),), dtype=torch.long)
-            for j, idx in enumerate(indices):
-                col_indices[j] = connected_neurons[idx // self.in_features] * self.in_features + idx % self.in_features
-
-            # Set mask
-            mask[row_indices, col_indices] = 1
-
-        weight = self.weight * mask.float().to(device)
-        output = F.linear(input, weight, self.bias)
-
-        return output
-
-    def extra_repr(self):
-        return 'in_features={}, out_features={}, bias={}, sparsity={}, connection_ratio={}, device={}, dtype={}'.format(
-            self.in_features, self.out_features, self.bias is not None, self.sparsity, self.connection_ratio, self.device, self.dtype
-        )
+        return x

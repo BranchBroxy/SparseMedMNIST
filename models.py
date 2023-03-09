@@ -1,7 +1,8 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from custom_layers import SparseLayer, SimpleSparseLayer, SelfConnectedSparseLayer
+from custom_layers import SparseLayer, SimpleSparseLayer, NearestNeighborSparseLayer, SelfConnectedSparseLayer
 
 class LinearNN(nn.Module):
     def __init__(self):
@@ -22,7 +23,7 @@ class LinearNN(nn.Module):
 
 class DenseModel(nn.Module):
     def __init__(self, in_features: int, hidden_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None) -> None:
+                 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), dtype=None) -> None:
         super(DenseModel, self).__init__()
 
         self.in_features = in_features
@@ -46,7 +47,7 @@ class DenseModel(nn.Module):
 
 class CNNModel(nn.Module):
     def __init__(self, in_features: int, hidden_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None) -> None:
+                 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), dtype=None) -> None:
         super(CNNModel, self).__init__()
 
         self.in_features = in_features
@@ -83,7 +84,7 @@ class CNNModel(nn.Module):
 
 class SparseModel(nn.Module):
     def __init__(self, in_features: int, hidden_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None) -> None:
+                 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), dtype=None) -> None:
         super(SparseModel, self).__init__()
 
         self.in_features = in_features
@@ -97,7 +98,6 @@ class SparseModel(nn.Module):
         self.sl2 = SimpleSparseLayer(hidden_features, hidden_features, sparsity=0.5, bias=True)
         self.sl3 = nn.Linear(hidden_features, out_features)
         self.sl1 = SimpleSparseLayer(in_features, hidden_features, sparsity=0.5, bias=True)
-        self.sl4 = SelfConnectedSparseLayer(hidden_features, hidden_features, sparsity=0.5, connection_ratio=0.5, bias=True)
         self.sl2 = SimpleSparseLayer(hidden_features, hidden_features, sparsity=0.5, bias=True)
         self.sl3 = SimpleSparseLayer(hidden_features, out_features, sparsity=0.5, bias=True)
 
@@ -105,10 +105,64 @@ class SparseModel(nn.Module):
         flatten_tensor = self.flatten(input_tensor)
         sl1_out = self.sl1(flatten_tensor)
         sl2_out = self.sl2(sl1_out)
-        sl4_out = self.sl4(sl2_out)
-        sl3_out = self.sl3(sl4_out)
+        sl3_out = self.sl3(sl2_out)
         return sl3_out
 
+
+class SparseNNModel(nn.Module):
+    def __init__(self, in_features: int, hidden_features: int, out_features: int, bias: bool = True,
+                 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), dtype=None) -> None:
+        super(SparseNNModel, self).__init__()
+
+        self.in_features = in_features
+        self.hidden_features = hidden_features
+        self.out_features = out_features
+        self.bias = bias
+        self.device = device
+
+        self.flatten = nn.Flatten()
+        self.sl1 = nn.Linear(in_features, hidden_features)
+        self.sl2 = SimpleSparseLayer(hidden_features, hidden_features, sparsity=0.5, bias=True)
+        self.sl3 = nn.Linear(hidden_features, out_features)
+        self.sl1 = SimpleSparseLayer(in_features, hidden_features, sparsity=0.5, bias=True)
+        self.sl2 = NearestNeighborSparseLayer(hidden_features, hidden_features, sparsity=0.5, bias=True)
+        self.sl3 = SimpleSparseLayer(hidden_features, out_features, sparsity=0.5, bias=True)
+
+    def forward(self, input_tensor: Tensor) -> Tensor:
+        flatten_tensor = self.flatten(input_tensor)
+        sl1_out = self.sl1(flatten_tensor)
+        sl2_out = self.sl2(sl1_out)
+        sl3_out = self.sl3(sl2_out)
+        return sl3_out
+
+class SelfConnectedSparseModel(nn.Module):
+    def __init__(self, in_features: int, hidden_features: int, out_features: int, bias: bool = True,
+                 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), dtype=None) -> None:
+        super(SelfConnectedSparseModel, self).__init__()
+
+        self.in_features = in_features
+        self.hidden_features = hidden_features
+        self.out_features = out_features
+        self.bias = bias
+        self.device = device
+
+        self.flatten = nn.Flatten()
+        self.sl1 = nn.Linear(in_features, hidden_features)
+        self.sl2 = SimpleSparseLayer(hidden_features, hidden_features, sparsity=0.5, bias=True)
+        self.sl3 = nn.Linear(hidden_features, out_features)
+        self.sl1 = SimpleSparseLayer(in_features, hidden_features, sparsity=0.5, bias=True)
+        self.sl2 = NearestNeighborSparseLayer(hidden_features, hidden_features, sparsity=0.5, bias=True)
+        self.sl3 = SelfConnectedSparseLayer(hidden_features, hidden_features, sparsity=0.5, bias=True)
+        self.sl4 = SimpleSparseLayer(hidden_features, out_features, sparsity=0.5, bias=True)
+
+    def forward(self, input_tensor: Tensor) -> Tensor:
+        flatten_tensor = self.flatten(input_tensor)
+        sl1_out = self.sl1(flatten_tensor)
+        sl2_out = self.sl2(sl1_out)
+        sl3_out = self.sl3(sl2_out)
+        sl4_out = self.sl3(sl3_out)
+
+        return sl4_out
 
 
 
