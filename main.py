@@ -130,24 +130,29 @@ def med_data():
     #sparse_model_runner.plot_training_acc(save_string="sparse_training_acc_plot.png")
 
 
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # med_data()
     init_function()
-    from models import LinearNN, DenseModel, CNNModel, SparseModel, SparseNNModel, SelfConnectedSparseModel
+    from models import LinearNN, DenseModel, CNNModel, SparseModel, SparseNNModel, SelfConnectedSparseModel, HNN, HNNV2, HNNV3
 
-    dense_model = DenseModel(in_features=28 * 28, hidden_features=128, out_features=10, bias=True)
-    cnn_model = CNNModel(in_features=28 * 28, hidden_features=128, out_features=10, bias=True)
-    sparse_model = SparseModel(in_features=28 * 28, hidden_features=128, out_features=8, bias=True)
-    sparse_nn_model = SparseNNModel(in_features=28 * 28, hidden_features=128, out_features=8, bias=True)
-    self_connected_sparse_model = SelfConnectedSparseModel(in_features=28 * 28, hidden_features=128, out_features=8, bias=True)
+    dense_model = DenseModel(in_features=28 * 28, hidden_features=512, out_features=10, bias=True)
+    cnn_model = CNNModel(in_features=28 * 28, hidden_features=512, out_features=10, bias=True)
+    sparse_model = SparseModel(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
+    sparse_nn_model = SparseNNModel(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
+    self_connected_sparse_model = SelfConnectedSparseModel(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
+    hnn = HNN(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
+    hnnv2 = HNNV2(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
+    hnnv3 = HNNV3(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
     from get_data import load_mnist, load_medmnist
-    train_loader, test_loader = load_medmnist(batch_size=10, data_flag="tissuemnist")
+    train_loader, test_loader = load_medmnist(batch_size=32, data_flag="octmnist")
     # train_loader, test_loader = load_mnist(batch_size=10)
 
 
-    # compare_models_acc_over_epoch(train_loader, test_loader, dense_model, cnn_model, sparse_model, sparse_nn_model, self_connected_sparse_model)
-    compare_models_robustness(train_loader, test_loader, dense_model, cnn_model, sparse_model, sparse_nn_model, self_connected_sparse_model)
+    compare_models_acc_over_epoch(train_loader, test_loader, hnnv3, hnnv2, dense_model, cnn_model)
+    compare_models_robustness(train_loader, test_loader,hnnv3, hnnv2, hnn, dense_model, cnn_model, sparse_model, sparse_nn_model, self_connected_sparse_model)
 
     from handle_model import handle_model
     #sparse_model_runner = handle_model(sparse_nn_model, train_loader, test_loader)

@@ -25,9 +25,9 @@ def load_medmnist(batch_size=10, data_flag = 'pathmnist'):
     pil_dataset = DataClass(split='train', download=download)
 
     # encapsulate data into dataloader form
-    train_loader = data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     train_loader_at_eval = data.DataLoader(dataset=train_dataset, batch_size=2 * batch_size, shuffle=False)
-    test_loader = data.DataLoader(dataset=test_dataset, batch_size=2 * batch_size, shuffle=False)
+    test_loader = data.DataLoader(dataset=test_dataset, batch_size=2 * batch_size, shuffle=False, drop_last=True)
 
     return train_loader, test_loader
 
