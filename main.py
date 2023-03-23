@@ -138,20 +138,31 @@ if __name__ == '__main__':
     init_function()
     from models import LinearNN, DenseModel, CNNModel, SparseModel, SparseNNModel, SelfConnectedSparseModel, HNN, HNNV2, HNNV3
 
-    dense_model = DenseModel(in_features=28 * 28, hidden_features=512, out_features=10, bias=True)
-    cnn_model = CNNModel(in_features=28 * 28, hidden_features=512, out_features=10, bias=True)
-    sparse_model = SparseModel(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
-    sparse_nn_model = SparseNNModel(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
-    self_connected_sparse_model = SelfConnectedSparseModel(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
-    hnn = HNN(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
-    hnnv2 = HNNV2(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
-    hnnv3 = HNNV3(in_features=28 * 28, hidden_features=512, out_features=4, bias=True)
+    # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+
+    from resnet_model import ResNet, ResidualBlock
+
     from get_data import load_mnist, load_medmnist
-    train_loader, test_loader = load_medmnist(batch_size=32, data_flag="octmnist")
+    train_loader, test_loader = load_medmnist(batch_size=10, data_flag="octmnist")
+    dataset_shape = train_loader.dataset.imgs.shape[1:3]
+    flatten_image_shape = dataset_shape[0] * dataset_shape[1]
+    out_features = 4
+
+
+    resnet = ResNet(ResidualBlock, [2, 2, 2, 2])
+    dense_model = DenseModel(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+    cnn_model = CNNModel(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+    sparse_model = SparseModel(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+    sparse_nn_model = SparseNNModel(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+    self_connected_sparse_model = SelfConnectedSparseModel(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+    hnn = HNN(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+    hnnv2 = HNNV2(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+    hnnv3 = HNNV3(in_features=flatten_image_shape, hidden_features=512, out_features=out_features, bias=True)
+
     # train_loader, test_loader = load_mnist(batch_size=10)
 
 
-    compare_models_acc_over_epoch(train_loader, test_loader, hnnv3, hnnv2, dense_model, cnn_model)
+    compare_models_acc_over_epoch(train_loader, test_loader, resnet, hnnv3, hnnv2, dense_model, cnn_model)
     compare_models_robustness(train_loader, test_loader,hnnv3, hnnv2, hnn, dense_model, cnn_model, sparse_model, sparse_nn_model, self_connected_sparse_model)
 
     from handle_model import handle_model
