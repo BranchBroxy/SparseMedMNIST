@@ -40,15 +40,17 @@ class handle_model():
         self.epochs = epochs
         self.learing_rate = learning_rate
         self.loss_fn = loss_fn
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min')
         print(f"Running model")
         for self.epoch in range(self.epochs):
             print(f"Epoch {self.epoch + 1} of {self.name_of_model}\n-------------------------------")
-            self.train(self.train_dataloader, self.model, self.loss_fn, optimizer)
+            self.train(self.train_dataloader, self.model, self.loss_fn, self.optimizer, self.scheduler)
+            # self.scheduler.step(loss)
             self.test(self.test_dataloader, self.model, self.loss_fn)
 
         print("Done!")
-    def train(self, dataloader, model, loss_fn, optimizer, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+    def train(self, dataloader, model, loss_fn, optimizer, scheduler, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
         """
         Trains the provided PyTorch model on the provided training dataset.
 
@@ -76,17 +78,20 @@ class handle_model():
 
             y = y.squeeze(1)
             loss = loss_fn(pred, y)
-
+            # self.scheduler.step(loss)
             # Backpropagation
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+
             if (batch + 1) % 1000 == 0:
-                print(f'Epoch [{self.epoch + 1}/{ self.epochs}], Step [{batch + 1}/{n_total_steps}], Loss: {loss.item():.4f}')
+                print(f"Epoch [{self.epoch + 1}/{ self.epochs}], Step [{batch + 1}/{n_total_steps}], Loss: {loss.item():.4f}, Learning Rate {optimizer.param_groups[0]['lr']}")
                 #print(self.model.sl1.weight)
                 #print(model.sl2.weight)
                 #print(model.sl2.connections)
+        scheduler.step(loss)
+        #return loss
 
 
     def test(self, dataloader, model, loss_fn, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
@@ -140,3 +145,4 @@ class handle_model():
         sns.lineplot(data=df, x=df.Epoch, y=df.Accuracy, ax=axes)
         plt.savefig(save_string)
         plt.close()
+

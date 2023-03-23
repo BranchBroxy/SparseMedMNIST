@@ -31,7 +31,7 @@ def compare_models_robustness(train_dataloader, test_dataloader, *models: nn.Mod
             #models[0].__class__.__name__
         acc_list = []
         for model_runner in model_handlers:
-            model_runner.run(epochs=2)
+            model_runner.run(epochs=10)
             acc_list.append(model_runner.training_acc_with_epoch[-1][-1])
 
         list_to_append = []
@@ -81,7 +81,7 @@ def compare_models_acc_over_epoch(train_dataloader, test_dataloader, *models: nn
         #models[0].__class__.__name__
     acc_list = []
     for model_runner in model_handlers:
-        model_runner.run(epochs=10)
+        model_runner.run(epochs=100)
         acc_list.append(model_runner.training_acc)
 
 
@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
 
     compare_models_acc_over_epoch(train_loader, test_loader, resnet, hnnv3, hnnv2, dense_model, cnn_model)
-    compare_models_robustness(train_loader, test_loader,hnnv3, hnnv2, hnn, dense_model, cnn_model, sparse_model, sparse_nn_model, self_connected_sparse_model)
+    compare_models_robustness(train_loader, test_loader, resnet, hnnv3, hnnv2, hnn, dense_model, cnn_model, sparse_model, sparse_nn_model, self_connected_sparse_model)
 
     from handle_model import handle_model
     #sparse_model_runner = handle_model(sparse_nn_model, train_loader, test_loader)
